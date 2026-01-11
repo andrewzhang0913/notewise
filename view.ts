@@ -115,6 +115,9 @@ export class HomeNetView extends ItemView {
     currentVolume = 0;
     silenceStart: number | null = null;
     recordingStart: number = 0;
+    isAutoSlicing = false; // New flag to distinguish VAD cut from manual stop
+
+    currentStream: MediaStream | null = null; // Store tracks for cleanup
 
     // Logic Loop
     animationFrameId: number | null = null;
@@ -130,9 +133,33 @@ export class HomeNetView extends ItemView {
     vadConfig: VADConfig = {
         silenceThreshold: 10, // low volume floor
         silenceDuration: 800, // 0.8s silence
-        maxDuration: 15000,   // 15s max
-        minDuration: 5000     // 5s min
+        maxDuration: 30000,   // 30s max
+        minDuration: 15000     // 15s min (Reduced frequency)
     };
+
+    // Debug Log
+    debugLog: string[] = [];
+
+    async log(message: string) {
+        const timestamp = new Date().toLocaleTimeString();
+        const entry = `[${timestamp}] ${message}`;
+        this.debugLog.push(entry);
+        console.log(`[NoteWise] ${entry}`);
+
+        // Write to file periodically (every 5 entries) or on important messages
+        if (this.debugLog.length % 5 === 0 || message.includes("ERROR") || message.includes("FINISH")) {
+            await this.flushLog();
+        }
+    }
+
+    async flushLog() {
+        try {
+            const content = `# NoteWise Debug Log\nUpdated: ${new Date().toLocaleString()}\n\n\`\`\`\n${this.debugLog.join('\n')}\n\`\`\``;
+            await this.app.vault.adapter.write("NoteWise_Debug.md", content);
+        } catch (e) {
+            console.error("Failed to write log:", e);
+        }
+    }
 
     // UI Elements
     statusEl: HTMLElement;
@@ -177,6 +204,46 @@ export class HomeNetView extends ItemView {
         const container = this.containerEl.children[1] as HTMLElement;
         container.empty();
         container.addClass("homenet-container");
+
+        // --- Inject Styles ---
+        const style = document.createElement('style');
+        style.innerHTML = `
+            .homenet-record-btn {
+                width: 60px;
+                height: 60px;
+                border-radius: 50%;
+                background-color: var(--interactive-accent);
+                border: none;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+                margin-left: 10px;
+            }
+            .homenet-record-btn svg {
+                width: 30px;
+                height: 30px;
+                color: white;
+            }
+            .homenet-record-btn:hover {
+                transform: scale(1.05);
+                background-color: var(--interactive-accent-hover);
+            }
+            .is-recording-pulse {
+                background-color: #e74c3c !important;
+                box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7);
+                animation: pulse-red 1.5s infinite;
+            }
+            @keyframes pulse-red {
+                0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+                70% { transform: scale(1.0); box-shadow: 0 0 0 15px rgba(231, 76, 60, 0); }
+                100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+            }
+        `;
+        container.appendChild(style);
+
 
         // 1. Header & Search
         const header = container.createDiv({ cls: "homenet-header" });
@@ -223,7 +290,7 @@ export class HomeNetView extends ItemView {
         // Left Controls (Mode)
         const leftControls = controls.createDiv({ cls: "homenet-left-controls" });
 
-        const refineModeDropdown = new DropdownComponent(leftControls)
+        new DropdownComponent(leftControls)
             .addOption("journal", "📝 Journal")
             .addOption("meeting", "👥 Meeting")
             .addOption("list", "✅ List")
@@ -251,15 +318,6 @@ export class HomeNetView extends ItemView {
         // Right Controls (Actions)
         const rightControls = controls.createDiv({ cls: "homenet-right-controls" });
 
-        // Record Button
-        const recordBtn = rightControls.createEl("button", { cls: "homenet-record-btn" });
-        setIcon(recordBtn, "mic");
-        this.recordBtnEl = recordBtn; // CRITICAL: Assign to class property!
-
-        recordBtn.onclick = async () => {
-            this.toggleRecordingState();
-        };
-
         // Refine Button (Magic Wand)
         new ButtonComponent(rightControls)
             .setIcon("wand")
@@ -275,6 +333,16 @@ export class HomeNetView extends ItemView {
             .setTooltip("Insert to Note")
             .onClick(() => this.insertToActiveNote());
 
+        // --- IMPROVED RECORD BUTTON ---
+        // Separate from normal buttons for custom styling
+        const recordBtn = rightControls.createEl("button", { cls: "homenet-record-btn" });
+        setIcon(recordBtn, "mic"); // Default mic icon
+        this.recordBtnEl = recordBtn;
+
+        recordBtn.onclick = () => {
+            this.toggleRecordingState();
+        };
+
         // --- Auto-Resize Logic ---
         this.inputArea.addEventListener("input", () => this.autoResizeInput());
 
@@ -283,37 +351,8 @@ export class HomeNetView extends ItemView {
         this.updateStatus("Ready");
     }
 
-    toggleTranslationMode() {
-        this.isTranslationMode = !this.isTranslationMode;
-        this.updateTranslateBtnVisual();
-        new Notice(`Translation Mode: ${this.isTranslationMode ? "ON" : "OFF"}`);
-    }
-
-    updateTranslateBtnVisual() {
-        if (this.translateBtn && this.translateBtn.buttonEl) {
-            if (this.isTranslationMode) {
-                this.translateBtn.buttonEl.addClass("is-active-toggle");
-            } else {
-                this.translateBtn.buttonEl.removeClass("is-active-toggle");
-            }
-        }
-    }
-
-    // --- Interaction Handlers ---
-
-    handleBtnDown(e: Event) {
-        e.preventDefault(); // Prevent focus loss
-        this.isLongPress = false;
-
-        // If we are recording, holding might mean STOP
-        if (this.isRecording) {
-            this.pressTimer = setTimeout(() => {
-                this.isLongPress = true;
-                this.stopRecording(true); // True = Force Stop
-                this.updateBtnVisuals("stop");
-            }, 800); // 800ms long press
-        }
-    }
+    // Removed legacy updateTranslateBtnVisual and handleBtnDown methods as they are no longer needed 
+    // or integrated directly above.
 
     handleBtnUp(e: Event) {
         if (this.pressTimer) clearTimeout(this.pressTimer);
@@ -371,13 +410,13 @@ export class HomeNetView extends ItemView {
     sliceIntervalId: ReturnType<typeof setInterval> | null = null;
     sliceIntervalMs = 10000; // 10 seconds per slice (configurable)
     pendingSlice = false; // Flag to trigger processing from ondataavailable
+    sliceCount = 0; // Debug counter
 
     async startRecording() {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-            // Visualizer Setup (Optional, safe to fail)
-            try {
+            // Re-use stream/context if available or init new
+            if (!this.audioContext) {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 this.audioContext = new AudioContext();
                 const source = this.audioContext.createMediaStreamSource(stream);
                 this.analyser = this.audioContext.createAnalyser();
@@ -390,74 +429,99 @@ export class HomeNetView extends ItemView {
                     this.visualizer.analyser = this.analyser;
                 }
                 this.visualizer.setVisible(true);
-            } catch (vErr) {
-                console.warn("Visualizer failed to init:", vErr);
+
+                // Store stream specifically to stop tracks later
+                this.currentStream = stream;
             }
 
-            // Recorder Setup
-            this.mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-            this.audioChunks = [];
+            this.sliceCount = 0;
+            this._startMediaRecorder(); // Separation of concerns
 
-            this.mediaRecorder.ondataavailable = (e) => {
-                if (e.data.size > 0) {
-                    this.audioChunks.push(e.data);
-                }
-
-                // Check if we should process now (triggered by auto-slice timer)
-                if (this.pendingSlice && this.audioChunks.length > 0) {
-                    this.pendingSlice = false;
-                    new Notice(`Auto-slice: Processing ${this.audioChunks.length} chunks...`);
-                    this.processAudioChunk(false); // false = not final, keep recording
-                }
-            };
-
-            // Handle Stop Event (Final cleanup)
-            this.mediaRecorder.onstop = () => {
-                // Clear interval
-                if (this.sliceIntervalId) {
-                    clearInterval(this.sliceIntervalId);
-                    this.sliceIntervalId = null;
-                }
-
-                // Process remaining chunks
-                if (this.audioChunks.length > 0) {
-                    new Notice("Processing final slice...");
-                    this.processAudioChunk(true);
-                }
-
-                // Cleanup tracks
-                stream.getTracks().forEach(track => track.stop());
-
-                if (this.visualizer) this.visualizer.setVisible(false);
-                if (this.audioContext) {
-                    this.audioContext.close();
-                    this.audioContext = null;
-                }
-                this.mediaRecorder = null;
-                this.updateBtnVisuals('idle');
-            };
-
-            this.mediaRecorder.start(100); // 100ms slices for safety
             this.isRecording = true;
             this.isPaused = false;
-
+            this.recordingStart = Date.now(); // Fix: Initialize timer
             this.updateBtnVisuals('recording');
-            new Notice("Microphone Active 🎙️ (Auto-slice: 10s)");
+            new Notice("🎙️ Recording (VAD: 15-30s)");
+            this.log("Recording started with VAD mode");
 
-            // --- Auto-Slice Timer ---
-            this.sliceIntervalId = setInterval(() => {
-                if (this.isRecording && !this.isPaused && this.mediaRecorder?.state === 'recording') {
-                    // Set flag and request data - processing happens in ondataavailable
-                    this.pendingSlice = true;
-                    this.mediaRecorder.requestData();
-                }
-            }, this.sliceIntervalMs);
+            // --- Start VAD Monitoring ---
+            this.monitorAudio();
 
         } catch (error) {
             console.error("Mic Error:", error);
             new Notice("Failed to access microphone. Check permissions.");
             this.isRecording = false;
         }
+    }
+
+    _startMediaRecorder() {
+        if (!this.currentStream) return;
+
+        this.mediaRecorder = new MediaRecorder(this.currentStream, { mimeType: 'audio/webm' });
+        this.audioChunks = [];
+
+        this.mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) {
+                this.audioChunks.push(e.data);
+            }
+        };
+
+        this.mediaRecorder.onstop = async () => {
+            // Process the complete slice
+            if (this.audioChunks.length > 0) {
+                const blob = new Blob(this.audioChunks, { type: 'audio/webm' });
+                this.sliceCount++;
+                const sizeKB = (blob.size / 1024).toFixed(1);
+
+                if (this.isAutoSlicing) {
+                    new Notice(`✂️ Auto-Slice #${this.sliceCount}: ${sizeKB} KB`);
+                    this.log(`Slice #${this.sliceCount}: ${sizeKB} KB (Auto)`);
+                } else {
+                    new Notice(`🏁 Final Slice #${this.sliceCount}: ${sizeKB} KB`);
+                    this.log(`Slice #${this.sliceCount}: ${sizeKB} KB (Final)`);
+                }
+
+                // Process concurrently
+                this.processAudioChunk(blob, this.sliceCount);
+            }
+
+            // If auto-slicing, RESTART immediately
+            if (this.isAutoSlicing) {
+                this.isAutoSlicing = false; // Reset flag
+                this.audioChunks = [];      // Clear buffer (redundant but safe)
+                this.recordingStart = Date.now(); // Reset timer
+                this.silenceStart = null;
+
+                // Restart recorder
+                this._startMediaRecorder();
+            } else {
+                // Manual STOP - Full Cleanup
+                this.fullCleanup();
+            }
+        };
+
+        this.mediaRecorder.start(100);
+    }
+
+    fullCleanup() {
+        // Stop VAD monitoring
+        if (this.animationFrameId) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
+        }
+
+        if (this.currentStream) {
+            this.currentStream.getTracks().forEach(track => track.stop());
+            this.currentStream = null;
+        }
+
+        if (this.visualizer) this.visualizer.setVisible(false);
+        if (this.audioContext) {
+            this.audioContext.close();
+            this.audioContext = null;
+        }
+        this.mediaRecorder = null;
+        this.updateBtnVisuals('idle');
     }
 
     pauseRecording() {
@@ -480,69 +544,111 @@ export class HomeNetView extends ItemView {
         if (!this.mediaRecorder || this.mediaRecorder.state === "inactive") return;
 
         this.isRecording = false;
-        this.pendingSlice = false; // Clear any pending slice
+        this.isAutoSlicing = false; // Ensure manual stop logic runs
         this.updateBtnVisuals('stop');
 
-        // This triggers onstop() which handles cleanup and final processing
+        // This triggers onstop() -> fullCleanup()
         this.mediaRecorder.stop();
     }
 
-    // Legacy stubs
-    monitorAudio() { }
-    cutAndTranscribe() { }
-
-    // --- Processing ---
-
-    async processAudioChunk(isFinal: boolean) {
-        if (this.audioChunks.length === 0) {
-            new Notice("⚠️ No audio data captured.");
+    // --- VAD Audio Monitoring ---
+    monitorAudio() {
+        if (!this.isRecording || this.isPaused || !this.analyser) {
+            this.animationFrameId = null;
             return;
         }
 
-        const blob = new Blob(this.audioChunks, { type: 'audio/webm' });
-        // Debug: Show processing status
-        new Notice(`Processing Audio (${(blob.size / 1024).toFixed(1)} KB)...`);
+        const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+        this.analyser.getByteFrequencyData(dataArray);
 
-        // Check Setting: Save File?
-        // @ts-ignore
-        const saveFile = this.app.plugins.getPlugin('homenet-sync').settings.saveAudioFiles;
-        if (saveFile) {
-            this.saveAudioToVault(blob);
+        // Calculate average volume (0-255)
+        const sum = dataArray.reduce((a, b) => a + b, 0);
+        this.currentVolume = sum / dataArray.length;
+
+        const now = Date.now();
+        const elapsed = now - this.recordingStart;
+
+        // Check for silence
+        if (this.currentVolume < this.vadConfig.silenceThreshold) {
+            // Start silence timer if not already
+            if (this.silenceStart === null) {
+                this.silenceStart = now;
+            }
+
+            const silenceDuration = now - this.silenceStart;
+
+            // Auto-slice if: silence >= 0.8s AND recording >= minDuration
+            if (silenceDuration >= this.vadConfig.silenceDuration && elapsed >= this.vadConfig.minDuration) {
+                this.log(`VAD: Silence detected (${silenceDuration}ms), cutting at ${elapsed}ms`);
+                this.cutAndTranscribe();
+            }
+        } else {
+            // Reset silence timer when volume is above threshold
+            this.silenceStart = null;
         }
 
-        const file = new File([blob], "recording.webm", { type: 'audio/webm' });
+        // Force cut if max duration reached
+        if (elapsed >= this.vadConfig.maxDuration) {
+            this.log(`VAD: Max duration reached (${elapsed}ms), force cutting`);
+            this.cutAndTranscribe();
+        }
 
-        // Clear chunks if we are done with this segment
-        this.audioChunks = [];
+        // Continue monitoring
+        this.animationFrameId = requestAnimationFrame(() => this.monitorAudio());
+    }
 
-        this.updateStatus("Transcribing...");
+    cutAndTranscribe() {
+        if (!this.mediaRecorder || this.mediaRecorder.state !== 'recording') return;
+        if (this.audioChunks.length === 0) return;
+
+        // Trigger Auto-Slice sequence
+        this.isAutoSlicing = true;
+        this.mediaRecorder.stop(); // This triggers onstop -> process -> restart
+    }
+
+    // --- Processing (Direct - No Queue) ---
+
+    // Remove complex queue logic to restore previous behavior
+    async processAudioChunk(blob: Blob, itemNum: number) {
+        new Notice(`🔄 Processing Slice #${itemNum}...`);
 
         try {
-            // Pass Context (lastTranscription)
-            const prompt = this.lastTranscription.slice(-500); // Last 500 chars as context
+            // Only show Transcribing when not recording (to avoid confusion)
+            if (!this.isRecording) {
+                this.updateStatus("Transcribing...");
+            }
 
-            // Debug: Start Request
-            // new Notice("Sending to Dify...");
+            // Check Setting: Save File?
+            // @ts-ignore
+            const saveFile = this.app.plugins.getPlugin('homenet-sync').settings.saveAudioFiles;
+            if (saveFile) {
+                this.saveAudioToVault(blob);
+            }
+
+            const file = new File([blob], "recording.webm", { type: 'audio/webm' });
+            const prompt = this.lastTranscription.slice(-500);
+
+            this.log(`Slice #${itemNum}: Calling API...`);
             const text = await this.difyService.transcribeAudio(file, prompt);
+
+            this.log(`Slice #${itemNum}: API returned "${text?.substring(0, 50) || 'NULL'}"`);
 
             if (text && text.trim().length > 0) {
                 this.lastTranscription += text + " ";
-                // Append to UI
                 this.streamTextToInput(text + " ");
                 this.addUserMessage(text, blob);
-
-                // Show success
-                new Notice("✅ Transcribed");
-                this.autoResizeInput(); // Expand inputs
+                new Notice(`✅ Slice #${itemNum} done`);
+                this.autoResizeInput();
             } else {
-                new Notice("⚠️ Transcription returned empty text.");
+                this.log(`Slice #${itemNum}: EMPTY response`);
+                new Notice(`⚠️ Slice #${itemNum} empty`);
             }
         } catch (e) {
-            console.error("Transcribe Error:", e);
-            new Notice("❌ Transcription Failed: " + e.message);
+            this.log(`Slice #${itemNum}: ERROR - ${e.message}`);
+            new Notice(`❌ Slice #${itemNum} failed`);
+        } finally {
+            this.updateStatus(this.isRecording ? "Listening..." : "Ready", this.isRecording ? "var(--text-error)" : "");
         }
-
-        this.updateStatus(this.isRecording ? "Listening..." : "Ready", this.isRecording ? "var(--text-error)" : "");
     }
 
     async saveAudioToVault(blob: Blob) {
@@ -560,13 +666,29 @@ export class HomeNetView extends ItemView {
     // --- UI Modifiers ---
 
     streamTextToInput(text: string) {
-        // Simple append for now, can be improved to ease-in
+        this.log(`streamTextToInput: ENTER with text="${text.substring(0, 30)}..."`);
+        if (!this.inputArea) {
+            this.log(`streamTextToInput: ERROR - inputArea is NULL`);
+            return;
+        }
+        const before = this.inputArea.value.length;
         this.inputArea.value += text;
+        const after = this.inputArea.value.length;
+        this.log(`streamTextToInput: chars ${before}→${after}`);
         this.inputArea.scrollTop = this.inputArea.scrollHeight;
     }
 
     addUserMessage(text: string, audioBlob?: Blob) {
+        this.log(`addUserMessage: ENTER with text="${text.substring(0, 30)}..."`);
+        if (!this.contentArea) {
+            this.log(`addUserMessage: ERROR - contentArea is NULL`);
+            return;
+        }
+
+        const childCountBefore = this.contentArea.children.length;
         const msg = this.contentArea.createDiv({ cls: "homenet-message user" });
+        const childCountAfter = this.contentArea.children.length;
+        this.log(`addUserMessage: children ${childCountBefore}→${childCountAfter}`);
 
         // 1. Audio Player
         if (audioBlob) {
@@ -575,21 +697,20 @@ export class HomeNetView extends ItemView {
             const audio = audioContainer.createEl("audio", {
                 attr: { controls: "true", src: audioUrl }
             });
-            // Inline styles for immediate visibility
             audio.style.width = "100%";
             audio.style.height = "30px";
             audio.style.marginBottom = "6px";
         }
 
-        // 2. Editable Text with Typewriter Effect
+        // 2. Editable Text
         const textEl = msg.createDiv({ cls: "homenet-message-text is-typing" });
         textEl.contentEditable = "true";
         textEl.setText(text);
+        this.log(`addUserMessage: SUCCESS - msg created`);
 
-        // Remove animation class after completion to allow re-triggering
         setTimeout(() => {
             textEl.removeClass("is-typing");
-        }, 800); // Match CSS animation duration
+        }, 800);
 
         this.scrollToBottom();
     }
@@ -776,6 +897,8 @@ Output ONLY the final translated result in the requested format.`;
 
             this.updateStatus("Ready");
         } catch (e) {
+            console.error("Refine Error:", e);
+            this.log(`Refine ERROR: ${e.message}`);
             this.updateStatus("Error", "var(--text-error)");
             new Notice("Refine Error: " + e.message);
         }

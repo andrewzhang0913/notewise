@@ -6,6 +6,7 @@ interface HomeNetSyncSettings {
     difyBaseUrl: string;
     journalAppKey: string;
     siliconFlowKey: string;
+    groqApiKey: string; // New separate key for Transcription
     difyInputVar: string;
     refineProvider: 'dify' | 'siliconflow';
     refineModel: string;
@@ -18,6 +19,7 @@ const DEFAULT_SETTINGS: HomeNetSyncSettings = {
     difyBaseUrl: 'http://192.168.31.254:5001/v1',
     journalAppKey: '',
     siliconFlowKey: '',
+    groqApiKey: '',
     difyInputVar: 'journal_text',
     refineProvider: 'siliconflow',
     refineModel: 'Qwen/Qwen2.5-7B-Instruct',
@@ -32,12 +34,13 @@ export default class HomeNetSync extends Plugin {
 
     async onload() {
         await this.loadSettings();
-        console.log("HomeNet Sync v0.5.3 (Settings Update) Loaded");
+        console.log("HomeNet Sync v0.6.0 (Multi-Key) Loaded");
 
         this.difyService = new DifyService(
             this.settings.difyBaseUrl,
             this.settings.journalAppKey,
             this.settings.siliconFlowKey,
+            this.settings.groqApiKey, // Pass new key
             this.settings.difyInputVar,
             this.settings.refineTemplate
         );
@@ -98,6 +101,7 @@ export default class HomeNetSync extends Plugin {
             this.settings.difyBaseUrl,
             this.settings.journalAppKey,
             this.settings.siliconFlowKey,
+            this.settings.groqApiKey, // Pass new key
             this.settings.difyInputVar,
             this.settings.refineTemplate
         );
@@ -112,23 +116,37 @@ class HomeNetSyncSettingTab extends PluginSettingTab {
         containerEl.empty();
         containerEl.createEl('h2', { text: 'HomeNet Sync Settings' });
 
-        new Setting(containerEl)
-            .setName('Dify API URL')
-            .setDesc('Journal Base URL')
-            .addText(text => text.setValue(this.plugin.settings.difyBaseUrl)
-                .onChange(async (v) => { this.plugin.settings.difyBaseUrl = v; await this.plugin.saveSettings(); }));
+        containerEl.createEl('h3', { text: 'API Keys' });
 
         new Setting(containerEl)
-            .setName('Journal App Key')
-            .setDesc('Dify Workflow Key')
+            .setName('Groq API Key (Transcription)')
+            .setDesc('Required for fast speech-to-text (starts with gsk_).')
+            .addText(text => text
+                .setPlaceholder('gsk_...')
+                .setValue(this.plugin.settings.groqApiKey)
+                .onChange(async (v) => { this.plugin.settings.groqApiKey = v; await this.plugin.saveSettings(); }));
+
+        new Setting(containerEl)
+            .setName('SiliconFlow API Key (Refinement)')
+            .setDesc('Required for Qwen/DeepSeek text refinement (starts with sk-).')
+            .addText(text => text
+                .setPlaceholder('sk-...')
+                .setValue(this.plugin.settings.siliconFlowKey)
+                .onChange(async (v) => { this.plugin.settings.siliconFlowKey = v; await this.plugin.saveSettings(); }));
+
+        new Setting(containerEl)
+            .setName('Dify Journal App Key')
+            .setDesc('Optional: For Dify Workflow mode.')
             .addText(text => text.setValue(this.plugin.settings.journalAppKey)
                 .onChange(async (v) => { this.plugin.settings.journalAppKey = v; await this.plugin.saveSettings(); }));
 
+        containerEl.createEl('h3', { text: 'Advanced Config' });
+
         new Setting(containerEl)
-            .setName('SiliconFlow API Key')
-            .setDesc('sk-...')
-            .addText(text => text.setValue(this.plugin.settings.siliconFlowKey)
-                .onChange(async (v) => { this.plugin.settings.siliconFlowKey = v; await this.plugin.saveSettings(); }));
+            .setName('Dify API URL')
+            .setDesc('Base URL for Dify (e.g. http://192.168.x.x:5001/v1)')
+            .addText(text => text.setValue(this.plugin.settings.difyBaseUrl)
+                .onChange(async (v) => { this.plugin.settings.difyBaseUrl = v; await this.plugin.saveSettings(); }));
 
         new Setting(containerEl)
             .setName('Workflow Input Variable')

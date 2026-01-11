@@ -61,23 +61,6 @@
 
 ---
 
-## 🚀 快速开始
-
-1. 通过 **BRAT** 安装或手动复制到 `.obsidian/plugins/homenet-sync`
-2. 在设置中填入 **SiliconFlow API Key**
-3. 点击侧边栏的 **声波图标** 打开 NoteWise 面板
-4. 选择模板模式，开始说话！
-
-## 📦 安装方式
-
-### 方式一：BRAT (推荐)
-
-1. 安装 [BRAT](https://github.com/TfTHacker/obsidian42-brat) 插件
-2. 添加此仓库：`andrewzhang0913/notewise`
-3. 启用插件
-
-### 方式二：手动安装
-
 1. 从 [GitHub Releases](https://github.com/andrewzhang0913/notewise/releases) 下载最新版本
 2. 解压到 `.obsidian/plugins/homenet-sync`
 3. 在 Obsidian 设置中启用插件

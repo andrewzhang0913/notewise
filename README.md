@@ -61,21 +61,6 @@ Transform raw voice notes into professional formats instantly:
 
 ## 🚀 Getting Started
 
-1. Install via **BRAT** or copy to `.obsidian/plugins/homenet-sync`
-2. Configure your **SiliconFlow API Key** in settings
-3. Click the **Waveform Icon** in the ribbon to open the Copilot panel
-4. Select a template (Journal/Meeting/List) and start speaking!
-
-## 📦 Installation
-
-### Option 1: BRAT (Recommended)
-
-1. Install [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin
-2. Add this repository: `andrewzhang0913/notewise`
-3. Enable the plugin
-
-### Option 2: Manual
-
 1. Download the latest release from [GitHub Releases](https://github.com/andrewzhang0913/notewise/releases)
 2. Extract to `.obsidian/plugins/homenet-sync`
 3. Enable the plugin in Obsidian settings

@@ -4,21 +4,24 @@ export class DifyService {
     baseUrl: string;
     journalKey: string;
     siliconFlowKey: string;
+    groqApiKey: string; // New separate key
     inputVar: string;
     refineTemplate: string;
 
-    constructor(baseUrl: string, journalKey: string, siliconFlowKey: string, inputVar: string = 'journal_text', refineTemplate: string = "") {
+    constructor(baseUrl: string, journalKey: string, siliconFlowKey: string, groqApiKey: string, inputVar: string = 'journal_text', refineTemplate: string = "") {
         this.baseUrl = baseUrl.replace(/\/$/, '').trim();
         this.journalKey = journalKey.trim();
         this.siliconFlowKey = siliconFlowKey.trim();
+        this.groqApiKey = groqApiKey.trim();
         this.inputVar = inputVar.trim();
         this.refineTemplate = refineTemplate;
     }
 
-    updateConfig(baseUrl: string, journalKey: string, siliconFlowKey: string, inputVar: string, refineTemplate: string) {
+    updateConfig(baseUrl: string, journalKey: string, siliconFlowKey: string, groqApiKey: string, inputVar: string, refineTemplate: string) {
         this.baseUrl = baseUrl.replace(/\/$/, '').trim();
         this.journalKey = journalKey.trim();
         this.siliconFlowKey = siliconFlowKey.trim();
+        this.groqApiKey = groqApiKey.trim();
         this.inputVar = inputVar.trim();
         this.refineTemplate = refineTemplate;
     }
@@ -71,10 +74,14 @@ export class DifyService {
     }
 
     async transcribeAudio(audioFile: File, prompt?: string): Promise<string> {
-        if (!this.siliconFlowKey) throw new Error("SiliconFlow API Key is missing.");
+        // Use separate Groq Key for transcription
+        if (!this.groqApiKey) throw new Error("Groq API Key is missing. Please set it in settings.");
 
-        // Docs: https://docs.siliconflow.cn/api-reference/audio-transcriptions
-        const url = "https://api.siliconflow.cn/v1/audio/transcriptions";
+        console.log(`[DifyService] Using Groq Key: ${this.groqApiKey.substring(0, 4)}...`);
+
+        // Switch to Groq for maximum speed & stability
+        // API: https://console.groq.com/docs/speech-text
+        const url = "https://api.groq.com/openai/v1/audio/transcriptions";
 
         const boundary = '----ObsidianSiliconBoundary' + Date.now();
         const arrayBuffer = await audioFile.arrayBuffer();
@@ -85,10 +92,10 @@ export class DifyService {
             `Content-Disposition: form-data; name="file"; filename="${audioFile.name}"\r\n` +
             `Content-Type: ${audioFile.type || 'audio/webm'}\r\n\r\n`;
 
-        // Header Part 2: Model (CORRECTED FIX)
+        // Header Part 2: Model (Groq Whisper)
         const modelHeader = `\r\n--${boundary}\r\n` +
             `Content-Disposition: form-data; name="model"\r\n\r\n` +
-            `FunAudioLLM/SenseVoiceSmall`;
+            `whisper-large-v3`;
 
         // Header Part 3: Prompt (Optional Context)
         let promptHeader = "";
@@ -120,34 +127,73 @@ export class DifyService {
         }
         bodyBuffer.set(footerBytes, offset);
 
-        try {
-            const response = await requestUrl({
-                url: url,
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${this.siliconFlowKey}`,
-                    "Content-Type": `multipart/form-data; boundary=${boundary}`
-                },
-                body: bodyBuffer.buffer as ArrayBuffer
-            });
+        // Retry logic for transient errors
+        const maxRetries = 3;
+        const retryDelays = [2000, 3000, 5000]; // Reduced delays
+        const requestTimeout = 20000; // 20s timeout
 
-            if (response.status !== 200) {
-                console.error("SiliconFlow Error:", response.text);
-                throw new Error(response.text);
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                const uniqueUrl = `${url}?t=${Date.now()}`;
+                console.log(`[DifyService] Calling Groq (Attempt ${attempt}):`, uniqueUrl);
+
+                // Use native fetch
+                const response = await Promise.race([
+                    fetch(uniqueUrl, {
+                        method: 'POST',
+                        headers: {
+                            "Authorization": `Bearer ${this.groqApiKey}`,
+                            // Let fetch handle boundary
+                            "Content-Type": `multipart/form-data; boundary=${boundary}`,
+                            "Connection": "close"
+                        },
+                        body: bodyBuffer.buffer, // ArrayBuffer
+                        keepalive: false
+                    }),
+                    new Promise<Response>((_, reject) =>
+                        setTimeout(() => reject(new Error('Request timeout after 20s')), requestTimeout)
+                    )
+                ]);
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    console.warn(`API Error ${response.status}: ${errText}`);
+
+                    if (response.status === 401) {
+                        throw new Error("Invalid API Key (401). Please check if your Groq Key is correct (starts with 'gsk_').");
+                    }
+
+                    // Retry on 5xx or 429
+                    if ((response.status >= 500 || response.status === 429) && attempt < maxRetries) {
+                        await new Promise(r => setTimeout(r, retryDelays[attempt - 1]));
+                        continue;
+                    }
+                    throw new Error(`HTTP ${response.status}: ${errText}`);
+                }
+
+                const data = await response.json();
+                console.log("[DifyService] Transcription success:", data);
+                if (data.text) return data.text;
+                throw new Error("No text in response");
+
+            } catch (error) {
+                console.warn(`Attempt ${attempt} failed: ${error.message}`);
+                if (attempt < maxRetries) {
+                    await new Promise(r => setTimeout(r, retryDelays[attempt - 1]));
+                    continue;
+                }
+                throw error;
             }
-
-            return response.json.text;
-
-        } catch (error) {
-            console.error("Transcription Failed:", error);
-            throw error;
         }
+        throw new Error("Max retries exceeded");
     }
 
     async refineTextViaSiliconFlow(text: string, model: string = "Qwen/Qwen2.5-7B-Instruct", systemPrompt?: string): Promise<string> {
-        // ... (existing code) ...
         if (!this.siliconFlowKey) throw new Error("SiliconFlow API Key is missing.");
 
+        console.log(`[SiliconFlow] Refine using Key: ${this.siliconFlowKey.substring(0, 6)}... Model: ${model}`);
+
+        // Switch back to .cn for better stability in China?
         const url = "https://api.siliconflow.cn/v1/chat/completions";
 
         const messages: any[] = [];
@@ -195,7 +241,10 @@ CRITICAL RULES:
 
         } catch (error) {
             console.error("SiliconFlow Refine Error:", error);
-            throw error;
+            if (error.status === 401) {
+                throw new Error("Invalid SiliconFlow API Key (401). Please check settings (key starts with 'sk-').");
+            }
+            throw new Error(`Request failed, status ${error.status}`);
         }
     }
 
