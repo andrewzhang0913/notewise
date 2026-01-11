@@ -833,7 +833,7 @@ export class HomeNetView extends ItemView {
         this.updateStatus("Refining...", "var(--text-accent)");
 
         // @ts-ignore
-        const settings = this.app.plugins.getPlugin('homenet-sync').settings;
+        const settings = this.app.plugins.getPlugin('notewise').settings;
 
         // --- Construct Dynamic Prompt ---
         let systemPrompt = "";
