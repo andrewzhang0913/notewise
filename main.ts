@@ -34,7 +34,7 @@ export default class HomeNetSync extends Plugin {
 
     async onload() {
         await this.loadSettings();
-        console.log("HomeNet Sync v0.6.0 (Multi-Key) Loaded");
+        console.log("NoteWise v1.0.0 Loaded");
 
         this.difyService = new DifyService(
             this.settings.difyBaseUrl,

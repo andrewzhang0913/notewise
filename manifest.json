@@ -1,9 +1,9 @@
 {
     "id": "notewise",
-    "name": "NoteWise (智记)",
+    "name": "NoteWise",
     "version": "1.0.0",
     "minAppVersion": "0.15.0",
-    "description": "Your AI Wisdom Copilot. Captures voice, refines thoughts, and organizes life.",
+    "description": "Hybrid Brain copilot for audio transcription and text refinement.",
     "author": "Andrew Zhang",
     "authorUrl": "https://github.com/andrewzhang0913",
     "fundingUrl": "https://github.com/sponsors/andrewzhang0913",
