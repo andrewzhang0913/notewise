@@ -1,0 +1,30 @@
+# Build output
+main.js
+*.js.map
+
+# Dependencies
+node_modules/
+
+# IDE
+.idea/
+*.swp
+*.swo
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# User data (sensitive)
+data.json
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+
+# Lock files (regenerated on install)
+package-lock.json
