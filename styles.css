@@ -406,3 +406,31 @@
     display: inline-block;
     animation: typewriter 0.8s steps(40, end);
 }
+/* --- Utility Classes for Compliance --- */
+.homenet-hidden {
+    display: none !important;
+}
+
+.homenet-flex {
+    display: flex !important;
+}
+
+.homenet-width-full {
+    width: 100% !important;
+}
+
+.homenet-cursor-pointer {
+    cursor: pointer !important;
+}
+
+.homenet-status-error {
+    color: var(--text-error) !important;
+}
+
+.homenet-status-accent {
+    color: var(--text-accent) !important;
+}
+
+.homenet-status-muted {
+    color: var(--text-muted) !important;
+}

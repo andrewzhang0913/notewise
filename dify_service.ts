@@ -35,8 +35,9 @@ export class DifyService {
             "Content-Type": "application/json"
         };
 
-        const inputs: any = {};
-        inputs[this.inputVar] = text;
+        const inputs: Record<string, string> = {
+            [this.inputVar]: text
+        };
 
         const body = {
             inputs: inputs,
@@ -57,7 +58,7 @@ export class DifyService {
                 // Try to read error body
                 let errorMsg = `Status ${response.status}`;
                 try {
-                    const errorBody = await response.json;
+                    const errorBody = response.json as { message?: string; code?: string };
                     errorMsg += `: ${JSON.stringify(errorBody)}`;
                 } catch (e) {
                     errorMsg += ` (Body: ${response.text})`;
@@ -65,7 +66,7 @@ export class DifyService {
                 throw new Error(errorMsg);
             }
 
-            return response.json.data.outputs.result;
+            return (response.json as { data: { outputs: { result: string } } }).data.outputs.result;
 
         } catch (error) {
             console.error("Dify Service Error:", error);
@@ -148,7 +149,7 @@ export class DifyService {
                         },
                         body: bodyBuffer.buffer as ArrayBuffer
                     }),
-                    new Promise<any>((_, reject) =>
+                    new Promise<{ status: number; text: string; json: any; headers: Record<string, string> }>((_, reject) =>
                         setTimeout(() => reject(new Error('Request timeout after 20s')), requestTimeout)
                     )
                 ]);
@@ -179,19 +180,21 @@ export class DifyService {
                     throw new Error(`HTTP ${response.status}: ${errText}`);
                 }
 
-                const data = response.json;
+                const data = response.json as { text: string };
                 console.debug("[DifyService] Transcription success");
                 if (data.text) return data.text;
                 throw new Error("No text in response");
 
             } catch (error) {
                 // requestUrl throws an Error object with status property sometimes
-                const status = (error as any).status;
+                const status = (error as { status?: number }).status;
                 if (status === 401) {
                     throw new Error("Invalid API Key (401). Check Groq Key.");
                 }
 
-                console.warn(`Attempt ${attempt} failed: ${error.message}`);
+                if (error instanceof Error) {
+                    console.warn(`Attempt ${attempt} failed: ${error.message}`);
+                }
                 if (attempt < maxRetries) {
                     await new Promise(r => setTimeout(r, retryDelays[attempt - 1]));
                     continue;
@@ -210,7 +213,7 @@ export class DifyService {
         // Switch back to .cn for better stability in China?
         const url = "https://api.siliconflow.cn/v1/chat/completions";
 
-        const messages: any[] = [];
+        const messages: { role: string; content: string }[] = [];
 
         // Use provided system prompt override, OR fall back to template, OR fall back to default hardcoded.
         const defaultPrompt = `You are a text polishing tool, NOT an AI assistant.
@@ -251,14 +254,15 @@ CRITICAL RULES:
                 throw new Error(`SiliconFlow Status ${response.status}: ${response.text}`);
             }
 
-            return response.json.choices[0].message.content;
+            return (response.json as { choices: { message: { content: string } }[] }).choices[0].message.content;
 
         } catch (error) {
             console.error("SiliconFlow Refine Error:", error);
-            if (error.status === 401) {
+            const status = (error as { status?: number }).status;
+            if (status === 401) {
                 throw new Error("Invalid SiliconFlow API Key (401). Please check settings (key starts with 'sk-').");
             }
-            throw new Error(`Request failed, status ${error.status}`);
+            throw new Error(`Request failed, status ${status}`);
         }
     }
 
@@ -297,7 +301,7 @@ Output ONLY the translation. NO explanations.`
                 throw new Error(`SiliconFlow Status ${response.status}: ${response.text}`);
             }
 
-            return response.json.choices[0].message.content;
+            return (response.json as { choices: { message: { content: string } }[] }).choices[0].message.content;
 
         } catch (error) {
             console.error("SiliconFlow Translate Error:", error);

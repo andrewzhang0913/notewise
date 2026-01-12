@@ -169,7 +169,7 @@ export class HomeNetView extends ItemView {
     searchBar: HTMLInputElement;
 
     // Long Press Logic
-    pressTimer: any = null; // Node timeout or number
+    pressTimer: ReturnType<typeof setTimeout> | null = null;
     isLongPress = false;
 
     // Advanced State
@@ -224,9 +224,11 @@ export class HomeNetView extends ItemView {
             this.contentArea.querySelectorAll(".homenet-message").forEach((msg: HTMLElement) => {
                 const text = msg.innerText.toLowerCase();
                 if (text.includes(query)) {
-                    msg.style.display = "flex";
+                    msg.removeClass("homenet-hidden");
+                    msg.addClass("homenet-flex");
                 } else {
-                    msg.style.display = "none";
+                    msg.removeClass("homenet-flex");
+                    msg.addClass("homenet-hidden");
                 }
             });
         });
@@ -356,15 +358,15 @@ export class HomeNetView extends ItemView {
         } else if (state === 'recording') {
             this.recordBtnEl.addClass("is-recording-pulse"); // Use new class
             // setIcon(this.recordBtnEl, "waveform"); // Keep mic icon for consistency or change?
-            this.updateStatus("Listening...", "var(--text-error)");
+            this.updateStatus("Listening...", "error");
         } else if (state === 'paused') {
             this.recordBtnEl.addClass("is-paused");
             setIcon(this.recordBtnEl, "pause");
-            this.updateStatus("Paused (Click to Resume)", "var(--text-muted)");
+            this.updateStatus("Paused (Click to Resume)", "muted");
         } else if (state === 'stop') {
             this.recordBtnEl.addClass("is-stopping");
             setTimeout(() => this.recordBtnEl.removeClass("is-stopping"), 200);
-            this.updateStatus("Processing...", "var(--text-accent)");
+            this.updateStatus("Processing...", "accent");
         }
     }
 
@@ -444,8 +446,8 @@ export class HomeNetView extends ItemView {
                     this.log(`Slice #${this.sliceCount}: ${sizeKB} KB (Final)`);
                 }
 
-                // Process concurrently
-                this.processAudioChunk(blob, this.sliceCount);
+                // Process concurrently (Wait, bot says AWAIT)
+                await this.processAudioChunk(blob, this.sliceCount);
             }
 
             // If auto-slicing, RESTART immediately
@@ -516,7 +518,7 @@ export class HomeNetView extends ItemView {
 
     // --- VAD Audio Monitoring ---
     monitorAudio() {
-        if (!this.isRecording || this.isPaused || !this.analyser) {
+        if (!this.isRecording || this.isPaused || !this.analyser || this.isAutoSlicing) {
             this.animationFrameId = null;
             return;
         }
@@ -610,7 +612,7 @@ export class HomeNetView extends ItemView {
             this.log(`Slice #${itemNum}: ERROR - ${e.message}`);
             new Notice(`❌ Slice #${itemNum} failed`);
         } finally {
-            this.updateStatus(this.isRecording ? "Listening..." : "Ready", this.isRecording ? "var(--text-error)" : "");
+            this.updateStatus(this.isRecording ? "Listening..." : "Ready", this.isRecording ? "error" : "");
         }
     }
 
@@ -658,11 +660,9 @@ export class HomeNetView extends ItemView {
             const audioUrl = URL.createObjectURL(audioBlob);
             const audioContainer = msg.createDiv({ cls: "homenet-audio-player" });
             const audio = audioContainer.createEl("audio", {
-                attr: { controls: "true", src: audioUrl }
+                attr: { controls: "true", src: audioUrl },
+                cls: "homenet-width-full"
             });
-            audio.style.width = "100%";
-            audio.style.height = "30px";
-            audio.style.marginBottom = "6px";
         }
 
         // 2. Editable Text
@@ -688,10 +688,12 @@ export class HomeNetView extends ItemView {
         this.contentArea.scrollTop = this.contentArea.scrollHeight;
     }
 
-    updateStatus(text: string, color: string = "") {
+    updateStatus(text: string, state: "" | "error" | "accent" | "muted" = "") {
         this.statusEl.setText(text);
-        if (color) this.statusEl.style.color = color;
-        else this.statusEl.style.removeProperty("color");
+        this.statusEl.removeClass("homenet-status-error", "homenet-status-accent", "homenet-status-muted");
+        if (state) {
+            this.statusEl.addClass(`homenet-status-${state}`);
+        }
     }
 
     // --- Other Actions ---
@@ -749,8 +751,7 @@ export class HomeNetView extends ItemView {
         if (looseMessages.length === 0) return;
 
         // 3. Create Archive Container
-        const archive = this.contentArea.createDiv({ cls: "homenet-session-archive" });
-        archive.style.display = "none";
+        const archive = this.contentArea.createDiv({ cls: "homenet-session-archive homenet-hidden" });
 
         // Move messages into archive
         looseMessages.forEach(msg => archive.appendChild(msg));
@@ -759,8 +760,7 @@ export class HomeNetView extends ItemView {
         const summaryText = savedText.length > 40 ? savedText.slice(0, 40) + "..." : savedText;
         const time = window.moment().format("HH:mm");
 
-        const summaryEl = this.contentArea.createDiv({ cls: "homenet-session-summary is-collapsed" });
-        summaryEl.style.cursor = "pointer";
+        const summaryEl = this.contentArea.createDiv({ cls: "homenet-session-summary is-collapsed homenet-cursor-pointer" });
 
         // Toggle Logic
         const icon = summaryEl.createSpan({ cls: "summary-icon", text: "▶️" });
@@ -768,10 +768,17 @@ export class HomeNetView extends ItemView {
         summaryEl.createSpan({ cls: "summary-text", text: summaryText });
 
         summaryEl.onclick = () => {
-            const isHidden = archive.style.display === "none";
-            archive.style.display = isHidden ? "block" : "none";
-            icon.setText(isHidden ? "🔽" : "▶️");
-            summaryEl.toggleClass("is-collapsed", !isHidden);
+            const isHidden = archive.classList.contains("homenet-hidden");
+            if (isHidden) {
+                archive.removeClass("homenet-hidden");
+                archive.addClass("homenet-flex");
+                icon.setText("🔽");
+            } else {
+                archive.removeClass("homenet-flex");
+                archive.addClass("homenet-hidden");
+                icon.setText("▶️");
+            }
+            summaryEl.toggleClass("is-collapsed", isHidden);
         };
 
         // Re-order in DOM: Summary -> Archive -> (New content will follow)
@@ -793,7 +800,7 @@ export class HomeNetView extends ItemView {
         const text = this.inputArea.value;
         if (!text) return;
 
-        this.updateStatus("Refining...", "var(--text-accent)");
+        this.updateStatus("Refining...", "accent");
 
         // @ts-ignore
         const settings = this.app.plugins.getPlugin('notewise').settings;
@@ -862,7 +869,7 @@ Output ONLY the final translated result in the requested format.`;
         } catch (e) {
             console.error("Refine Error:", e);
             this.log(`Refine ERROR: ${e.message}`);
-            this.updateStatus("Error", "var(--text-error)");
+            this.updateStatus("Error", "error");
             new Notice("Refine Error: " + e.message);
         }
     }

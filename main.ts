@@ -171,7 +171,7 @@ class HomeNetSyncSettingTab extends PluginSettingTab {
                 .addOption('siliconflow', 'SiliconFlow (Direct LLM)')
                 .setValue(this.plugin.settings.refineProvider)
                 .onChange(async (v) => {
-                    this.plugin.settings.refineProvider = v as any;
+                    this.plugin.settings.refineProvider = v as 'dify' | 'siliconflow';
                     await this.plugin.saveSettings();
                 }));
 
