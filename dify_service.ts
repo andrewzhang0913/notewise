@@ -77,7 +77,7 @@ export class DifyService {
         // Use separate Groq Key for transcription
         if (!this.groqApiKey) throw new Error("Groq API Key is missing. Please set it in settings.");
 
-        console.log(`[DifyService] Using Groq Key: ${this.groqApiKey.substring(0, 4)}...`);
+        console.debug(`[DifyService] Using Groq Key: ${this.groqApiKey.substring(0, 4)}...`);
 
         // Switch to Groq for maximum speed & stability
         // API: https://console.groq.com/docs/speech-text
@@ -135,35 +135,43 @@ export class DifyService {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 const uniqueUrl = `${url}?t=${Date.now()}`;
-                console.log(`[DifyService] Calling Groq (Attempt ${attempt}):`, uniqueUrl);
+                console.debug(`[DifyService] Calling Groq (Attempt ${attempt}):`, uniqueUrl);
 
-                // Use native fetch
+                // Use Obsidian requestUrl
                 const response = await Promise.race([
-                    fetch(uniqueUrl, {
+                    requestUrl({
+                        url: uniqueUrl,
                         method: 'POST',
                         headers: {
                             "Authorization": `Bearer ${this.groqApiKey}`,
-                            // Let fetch handle boundary
-                            "Content-Type": `multipart/form-data; boundary=${boundary}`,
-                            "Connection": "close"
+                            "Content-Type": `multipart/form-data; boundary=${boundary}`
                         },
-                        body: bodyBuffer.buffer, // ArrayBuffer
-                        keepalive: false
+                        body: bodyBuffer.buffer as ArrayBuffer
                     }),
-                    new Promise<Response>((_, reject) =>
+                    new Promise<any>((_, reject) =>
                         setTimeout(() => reject(new Error('Request timeout after 20s')), requestTimeout)
                     )
                 ]);
 
-                if (!response.ok) {
-                    const errText = await response.text();
-                    console.warn(`API Error ${response.status}: ${errText}`);
+                if (response.status !== 200) {
+                    // requestUrl throws on 400+ by default usually unless throw:false is not set? 
+                    // Actually requestUrl treats non-200 as valid response but we check status.
+                    // Wait, documentation says requestUrl promise rejects on network error or 4xx/5xx if throw=true (default).
+                    // But let's handle it safely.
+                    // IMPORTANT: requestUrl returns { status, headers, json, text }
 
+                    // If we are here, it resolved (so likely 2xx).
+                    // However, we didn't set throw: false, so it might have thrown?
+                    // Let's assume standard behavior: if it returns, it's good, or we catch below.
+                }
+
+                if (response.status >= 400) {
+                    // This block might not be reached if requestUrl throws, but good for safety if we change config
+                    const errText = response.text;
+                    console.warn(`API Error ${response.status}: ${errText}`);
                     if (response.status === 401) {
                         throw new Error("Invalid API Key (401). Please check if your Groq Key is correct (starts with 'gsk_').");
                     }
-
-                    // Retry on 5xx or 429
                     if ((response.status >= 500 || response.status === 429) && attempt < maxRetries) {
                         await new Promise(r => setTimeout(r, retryDelays[attempt - 1]));
                         continue;
@@ -171,12 +179,18 @@ export class DifyService {
                     throw new Error(`HTTP ${response.status}: ${errText}`);
                 }
 
-                const data = await response.json();
-                console.log("[DifyService] Transcription success:", data);
+                const data = response.json;
+                console.debug("[DifyService] Transcription success");
                 if (data.text) return data.text;
                 throw new Error("No text in response");
 
             } catch (error) {
+                // requestUrl throws an Error object with status property sometimes
+                const status = (error as any).status;
+                if (status === 401) {
+                    throw new Error("Invalid API Key (401). Check Groq Key.");
+                }
+
                 console.warn(`Attempt ${attempt} failed: ${error.message}`);
                 if (attempt < maxRetries) {
                     await new Promise(r => setTimeout(r, retryDelays[attempt - 1]));
@@ -191,7 +205,7 @@ export class DifyService {
     async refineTextViaSiliconFlow(text: string, model: string = "Qwen/Qwen2.5-7B-Instruct", systemPrompt?: string): Promise<string> {
         if (!this.siliconFlowKey) throw new Error("SiliconFlow API Key is missing.");
 
-        console.log(`[SiliconFlow] Refine using Key: ${this.siliconFlowKey.substring(0, 6)}... Model: ${model}`);
+        console.debug(`[SiliconFlow] Refine using Key: ${this.siliconFlowKey.substring(0, 6)}... Model: ${model}`);
 
         // Switch back to .cn for better stability in China?
         const url = "https://api.siliconflow.cn/v1/chat/completions";

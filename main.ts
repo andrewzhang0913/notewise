@@ -1,4 +1,4 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile, WorkspaceLeaf } from 'obsidian';
+import { App, Plugin, PluginSettingTab, Setting, WorkspaceLeaf } from 'obsidian';
 import { DifyService } from './dify_service';
 import { HomeNetView, VIEW_TYPE_HOMENET } from './view';
 
@@ -34,7 +34,7 @@ export default class HomeNetSync extends Plugin {
 
     async onload() {
         await this.loadSettings();
-        console.log("NoteWise v1.0.0 Loaded");
+
 
         this.difyService = new DifyService(
             this.settings.difyBaseUrl,
@@ -112,11 +112,11 @@ class HomeNetSyncSettingTab extends PluginSettingTab {
     plugin: HomeNetSync;
     constructor(app: App, plugin: HomeNetSync) { super(app, plugin); this.plugin = plugin; }
     display(): void {
-        const { containerEl } = this as any;
+        const { containerEl } = this;
         containerEl.empty();
         containerEl.createEl('h2', { text: 'HomeNet Sync Settings' });
 
-        containerEl.createEl('h3', { text: 'API Keys' });
+        new Setting(containerEl).setName('API keys').setHeading();
 
         new Setting(containerEl)
             .setName('Groq API Key (Transcription)')
@@ -140,7 +140,7 @@ class HomeNetSyncSettingTab extends PluginSettingTab {
             .addText(text => text.setValue(this.plugin.settings.journalAppKey)
                 .onChange(async (v) => { this.plugin.settings.journalAppKey = v; await this.plugin.saveSettings(); }));
 
-        containerEl.createEl('h3', { text: 'Advanced Config' });
+        new Setting(containerEl).setName('Advanced config').setHeading();
 
         new Setting(containerEl)
             .setName('Dify API URL')
@@ -161,7 +161,7 @@ class HomeNetSyncSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.saveAudioFiles)
                 .onChange(async (v) => { this.plugin.settings.saveAudioFiles = v; await this.plugin.saveSettings(); }));
 
-        containerEl.createEl('h3', { text: 'Refine Strategy' });
+        new Setting(containerEl).setName('Refine strategy').setHeading();
 
         new Setting(containerEl)
             .setName('Refine Provider')

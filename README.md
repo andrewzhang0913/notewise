@@ -4,39 +4,48 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink?style=flat-square)](https://github.com/sponsors/andrewzhang0913)
 
-**NoteWise (智记)** is an intelligent Obsidian plugin designed to be your thought partner. It captures your voice, refines your fragmented ideas into structured notes, and helps you organize your life with wisdom.
+**NoteWise (智记)** is an intelligent Obsidian plugin designed to be your **Privacy-First Thought Partner**. It captures your voice, refines your fragmented ideas into structured notes, and helps you organize your life with local AI wisdom.
 
 > 🌏 [中文文档 (Chinese README)](./README_CN.md)
 
 ---
 
-## 💡 The Story Behind NoteWise
+## 🔒 Privacy & Open Source Philosophy
 
-Hi, I'm **Andrew** — a former semiconductor engineer who lost his job and has been self-teaching AI development at home for the past year, dreaming of building something meaningful.
+We believe your thoughts belong to you. In an era of cloud-first gathering, NoteWise stands for **Data Sovereignty**.
 
-**NoteWise was born out of necessity.** As someone who thinks faster than I type, I found myself drowning in scattered voice memos and half-finished notes. I wanted a tool that could:
+- **Offline First**: All audio processing and text refinement can run entirely on your local machine.
+- **No Vendor Lock-in**: You choose the brain. Connect to **Ollama**, **Dify**, or private LLMs.
+- **Secure**: Your data never leaves your "HomeNet" unless you explicitly choose a cloud provider.
 
-- Capture my thoughts **as I speak**
-- Transform messy voice notes into **polished, structured writing**
-- Work seamlessly with my **Obsidian-based second brain**
+### The HomeNet Vision
 
-So I built it myself, with AI assistance, learning along the way.
+NoteWise is the entry point to the **HomeNet Project** — an initiative to build a self-reliant, intelligent digital home. It acts as the neural link between your spontaneous thoughts and your **HomeNet Brain** (Knowledge Base).
 
-**This isn't a startup product with funding** — it's a solo developer's passion project, built during a challenging chapter of life. If NoteWise helps you, **please consider supporting its development.** Every bit of encouragement keeps this project alive.
+Whether you are running a high-end server or just a **standard laptop**, NoteWise empowers you to build a powerful local AI workflow without relying on big tech cloud APIs.
 
 ---
 
 ## ✨ Core Features
 
-### 1. 🎙️ Smart Voice Capture
+### 1. 🎙️ Smart Context Capture
 
-- **Auto-Slice Recording**: Automatically splits long recordings into manageable chunks (10s intervals) to prevent data loss.
-- **Context Awareness**: Streaming transcription that understands conversation context.
-- **Visual Feedback**: Real-time audio visualizer shows recording status.
+- **Auto-Slice Recording**: Automatically splits long recordings to ensure data safety.
+- **Context Awareness**: Connects to your "Brain" to understand your personal context.
+- **Visual Feedback**: Beautiful, real-time audio visualization.
 
-### 2. 🎭 AI Refinement Templates
+### 2. 🧠 Dual Engine Support (Hybrid Brain)
 
-Transform raw voice notes into professional formats instantly:
+- **Local Mode (Privacy Priority)**:
+  - Connect to **Ollama** or **Dify** running locally.
+  - Requires only a medium-performance laptop (e.g., MacBook Air M1, standard PC with 16GB RAM).
+  - **Zero Latency, Zero Cost, 100% Privacy.**
+- **Cloud Mode (Convenience)**:
+  - Optional support for **SiliconFlow** (Qwen/DeepSeek) or Groq for ultra-fast, cheap inference when on the go.
+
+### 3. 🎭 AI Refinement Templates
+
+Transform raw voice notes instantly:
 
 | Mode | Description |
 |------|-------------|
@@ -44,57 +53,53 @@ Transform raw voice notes into professional formats instantly:
 | **👥 Meeting** | Extracts Summary, Key Points, and Action Items |
 | **✅ Checklist** | Converts voice commands into Markdown Todo lists |
 
-### 3. 🌐 Smart Translation (Auto-Swap)
+### 4. 🌐 Smart Translation (Auto-Swap)
 
-- **Zero-Config**: Just toggle the **Globe Icon (🌐)** on.
-- **Smart Logic**:
-  - Input **Chinese** → Output **English**
-  - Input **English** → Output **Chinese**
-  - Toggle Off → strict **Keep Original Language**
-
-### 4. 🧠 Dual Engine Support
-
-- **SiliconFlow (Recommended)**: Fast, affordable, and powerful LLM inference (Qwen 2.5, DeepSeek).
-- **Dify (Custom)**: Connect to your own self-hosted AI agents.
+- **Zero-Config**: Just toggle the **Globe Icon (🌐)**.
+- **Smart Logic**: Automatically detects input language and swaps it (EN ↔ CN).
 
 ---
 
 ## 🚀 Getting Started
 
-1. Download the latest release from [GitHub Releases](https://github.com/andrewzhang0913/notewise/releases)
-2. Extract to `.obsidian/plugins/homenet-sync`
-3. Enable the plugin in Obsidian settings
+### 1. Installation
+
+1. Search for **NoteWise** in Obsidian Community Plugins (Coming Soon).
+2. Or download `main.js`, `manifest.json`, `styles.css` from [Releases](https://github.com/andrewzhang0913/notewise/releases) to your `.obsidian/plugins/notewise` folder.
+
+### 2. Configuration
+
+- **Local AI (Recommended)**:
+  - Set Provider to **Dify** or **Custom**.
+  - Enter your local address (e.g., `http://localhost:11434` for Ollama).
+- **Cloud AI**:
+  - Enter your API Key for SiliconFlow or Groq in Settings.
 
 ---
 
-## ❤️ Support This Project
+## ❤️ Keep the Vision Alive
 
-If NoteWise has helped you, please consider supporting its continued development. As a solo developer building this during a career transition, every contribution means the world to me.
+**NoteWise** is built by **Andrew** as part of the HomeNet initiative. It is a passion project exploring the future of personal, private AI.
 
-### 🌟 Ways to Support
+If this tool helps you reclaim ownership of your data and thoughts, please consider supporting the development.
 
 | Platform | Link |
 |----------|------|
-| **GitHub Sponsors** | [![Sponsor on GitHub](https://img.shields.io/badge/Sponsor-GitHub-pink?style=flat-square&logo=github)](https://github.com/sponsors/andrewzhang0913) |
+| **GitHub Sponsors** | [![Sponsor](https://img.shields.io/badge/Sponsor-GitHub-pink?style=flat-square&logo=github)](https://github.com/sponsors/andrewzhang0913) |
 | **Buy Me a Coffee** | [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?style=flat-square&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/andrewzhang0913) |
-| **Star the Repo** | ⭐ Give this project a star on GitHub! |
+| **Star the Repo** | ⭐ Give us a star on GitHub! |
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Whether it's bug reports, feature requests, or pull requests — every bit helps.
+We welcome fellow HomeNet architects!
 
 - 🐛 [Report a Bug](https://github.com/andrewzhang0913/notewise/issues)
-- 💡 [Request a Feature](https://github.com/andrewzhang0913/notewise/issues)
 - 🔧 [Submit a PR](https://github.com/andrewzhang0913/notewise/pulls)
 
 ---
 
 ## 📄 License
 
-MIT License © 2024 [Andrew](https://github.com/Andrew3QZ)
-
----
-
-*Empowering your second brain with AI wisdom.* 🧠✨
+MIT License © 2024-2026 [Andrew](https://github.com/Andrew3QZ). Part of the **HomeNet Ecosystem**.

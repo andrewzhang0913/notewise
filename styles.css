@@ -287,33 +287,38 @@
 }
 
 /* Specific styling for the Mic button - Transparent by default */
+/* Specific styling for the Mic button - Big Circular Floating Action Button style */
 .homenet-record-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: var(--interactive-accent);
     border: none;
-    background-color: transparent;
-    /* No !important needed if we manage specificity */
-    color: var(--text-muted);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    margin-left: 10px;
+    color: white;
+}
+
+.homenet-record-btn svg {
+    width: 30px;
+    height: 30px;
+    color: white;
 }
 
 .homenet-record-btn:hover {
-    background-color: var(--background-modifier-hover);
-    color: var(--text-normal);
-    transform: translateY(-1px);
+    transform: scale(1.05);
+    background-color: var(--interactive-accent-hover);
 }
 
-/* Active Recording State */
-.homenet-record-btn.is-recording {
-    background-color: var(--text-error) !important;
-    color: white !important;
-    opacity: 1 !important;
-    box-shadow: 0 0 0 0 rgba(233, 49, 71, 0.7);
+/* Active Recording State - Pulse Red */
+.is-recording-pulse {
+    background-color: #e74c3c !important;
+    box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7);
     animation: pulse-red 1.5s infinite;
 }
 
@@ -333,18 +338,18 @@
 
 @keyframes pulse-red {
     0% {
-        transform: scale(1);
-        box-shadow: 0 0 0 0 rgba(233, 49, 71, 0.7);
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7);
     }
 
     70% {
-        transform: scale(1.1);
-        box-shadow: 0 0 0 6px rgba(233, 49, 71, 0);
+        transform: scale(1.0);
+        box-shadow: 0 0 0 15px rgba(231, 76, 60, 0);
     }
 
     100% {
-        transform: scale(1);
-        box-shadow: 0 0 0 0 rgba(233, 49, 71, 0);
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(231, 76, 60, 0);
     }
 }
 

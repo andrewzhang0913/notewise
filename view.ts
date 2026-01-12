@@ -144,7 +144,7 @@ export class HomeNetView extends ItemView {
         const timestamp = new Date().toLocaleTimeString();
         const entry = `[${timestamp}] ${message}`;
         this.debugLog.push(entry);
-        console.log(`[NoteWise] ${entry}`);
+        console.debug(`[NoteWise] ${entry}`);
 
         // Write to file periodically (every 5 entries) or on important messages
         if (this.debugLog.length % 5 === 0 || message.includes("ERROR") || message.includes("FINISH")) {
@@ -169,7 +169,7 @@ export class HomeNetView extends ItemView {
     searchBar: HTMLInputElement;
 
     // Long Press Logic
-    pressTimer: any = null;
+    pressTimer: any = null; // Node timeout or number
     isLongPress = false;
 
     // Advanced State
@@ -205,44 +205,7 @@ export class HomeNetView extends ItemView {
         container.empty();
         container.addClass("homenet-container");
 
-        // --- Inject Styles ---
-        const style = document.createElement('style');
-        style.innerHTML = `
-            .homenet-record-btn {
-                width: 60px;
-                height: 60px;
-                border-radius: 50%;
-                background-color: var(--interactive-accent);
-                border: none;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                transition: all 0.3s ease;
-                box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-                margin-left: 10px;
-            }
-            .homenet-record-btn svg {
-                width: 30px;
-                height: 30px;
-                color: white;
-            }
-            .homenet-record-btn:hover {
-                transform: scale(1.05);
-                background-color: var(--interactive-accent-hover);
-            }
-            .is-recording-pulse {
-                background-color: #e74c3c !important;
-                box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7);
-                animation: pulse-red 1.5s infinite;
-            }
-            @keyframes pulse-red {
-                0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
-                70% { transform: scale(1.0); box-shadow: 0 0 0 15px rgba(231, 76, 60, 0); }
-                100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
-            }
-        `;
-        container.appendChild(style);
+        // Styles moved to styles.css
 
 
         // 1. Header & Search
@@ -385,14 +348,14 @@ export class HomeNetView extends ItemView {
     }
 
     updateBtnVisuals(state: 'idle' | 'recording' | 'paused' | 'stop') {
-        this.recordBtnEl.removeClass("is-recording", "is-paused", "is-stopping");
+        this.recordBtnEl.removeClass("is-recording", "is-recording-pulse", "is-paused", "is-stopping");
 
         if (state === 'idle') {
             setIcon(this.recordBtnEl, "microphone");
             this.updateStatus("Ready");
         } else if (state === 'recording') {
-            this.recordBtnEl.addClass("is-recording");
-            setIcon(this.recordBtnEl, "waveform"); // or mic
+            this.recordBtnEl.addClass("is-recording-pulse"); // Use new class
+            // setIcon(this.recordBtnEl, "waveform"); // Keep mic icon for consistency or change?
             this.updateStatus("Listening...", "var(--text-error)");
         } else if (state === 'paused') {
             this.recordBtnEl.addClass("is-paused");
@@ -620,7 +583,7 @@ export class HomeNetView extends ItemView {
 
             // Check Setting: Save File?
             // @ts-ignore
-            const saveFile = this.app.plugins.getPlugin('homenet-sync').settings.saveAudioFiles;
+            const saveFile = this.app.plugins.getPlugin('notewise').settings.saveAudioFiles;
             if (saveFile) {
                 this.saveAudioToVault(blob);
             }
