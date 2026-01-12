@@ -659,7 +659,7 @@ export class HomeNetView extends ItemView {
         if (audioBlob) {
             const audioUrl = URL.createObjectURL(audioBlob);
             const audioContainer = msg.createDiv({ cls: "homenet-audio-player" });
-            const audio = audioContainer.createEl("audio", {
+            audioContainer.createEl("audio", {
                 attr: { controls: "true", src: audioUrl },
                 cls: "homenet-width-full"
             });
