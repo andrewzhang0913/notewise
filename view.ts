@@ -148,7 +148,7 @@ export class HomeNetView extends ItemView {
 
         // Write to file periodically (every 5 entries) or on important messages
         if (this.debugLog.length % 5 === 0 || message.includes("ERROR") || message.includes("FINISH")) {
-            await this.flushLog();
+            void this.flushLog();
         }
     }
 
@@ -195,8 +195,8 @@ export class HomeNetView extends ItemView {
         // We will just add the button once. 
         // Note: standard `addAction` appends to the header.
         if (this.containerEl.querySelectorAll('.view-action.reload-btn').length === 0) {
-            this.addAction("refresh-cw", "Reload View", () => {
-                this.onOpen();
+            this.addAction("refresh-cw", "Reload view", () => {
+                void this.onOpen();
                 new Notice("Reloaded Plugin View");
             }).addClass("reload-btn");
         }
@@ -268,7 +268,7 @@ export class HomeNetView extends ItemView {
         // Translation Toggle (Globe)
         const transBtn = new ButtonComponent(leftControls)
             .setIcon("globe")
-            .setTooltip("Smart Swap Translation (CN<->EN)")
+            .setTooltip("Smart swap translation (CN<->EN)")
             .onClick(() => {
                 this.isTranslationMode = !this.isTranslationMode;
                 if (this.isTranslationMode) {
@@ -286,7 +286,7 @@ export class HomeNetView extends ItemView {
         // Refine Button (Magic Wand)
         new ButtonComponent(rightControls)
             .setIcon("wand")
-            .setTooltip("Refine Text")
+            .setTooltip("Refine text")
             .onClick(async () => {
                 await this.refineText();
                 this.autoResizeInput(); // Trigger resize after refine
@@ -295,7 +295,7 @@ export class HomeNetView extends ItemView {
         // Insert Button (Arrow/PaperPlane)
         new ButtonComponent(rightControls)
             .setIcon("arrow-up-circle") // Or 'paper-plane'
-            .setTooltip("Insert to Note")
+            .setTooltip("Insert to note")
             .onClick(() => this.insertToActiveNote());
 
         // --- IMPROVED RECORD BUTTON ---
@@ -305,7 +305,7 @@ export class HomeNetView extends ItemView {
         this.recordBtnEl = recordBtn;
 
         recordBtn.onclick = () => {
-            this.toggleRecordingState();
+            void this.toggleRecordingState();
         };
 
         // --- Auto-Resize Logic ---
@@ -329,7 +329,7 @@ export class HomeNetView extends ItemView {
         }
 
         // Short click logic
-        this.toggleRecordingState();
+        void this.toggleRecordingState();
     }
 
     async toggleRecordingState() {
@@ -345,8 +345,8 @@ export class HomeNetView extends ItemView {
 
 
     autoResizeInput() {
-        this.inputArea.style.height = 'auto'; // Reset to shrink if needed
-        this.inputArea.style.height = this.inputArea.scrollHeight + 'px';
+        this.inputArea.setCssProps({ "height": "auto" }); // Reset to shrink if needed
+        this.inputArea.setCssProps({ "height": this.inputArea.scrollHeight + "px" });
     }
 
     updateBtnVisuals(state: 'idle' | 'recording' | 'paused' | 'stop') {
@@ -447,7 +447,7 @@ export class HomeNetView extends ItemView {
                 }
 
                 // Process concurrently (Wait, bot says AWAIT)
-                await this.processAudioChunk(blob, this.sliceCount);
+                void this.processAudioChunk(blob, this.sliceCount);
             }
 
             // If auto-slicing, RESTART immediately
@@ -590,7 +590,7 @@ export class HomeNetView extends ItemView {
             // @ts-ignore
             const saveFile = this.app.plugins.getPlugin('notewise').settings.saveAudioFiles;
             if (saveFile) {
-                this.saveAudioToVault(blob);
+                void this.saveAudioToVault(blob);
             }
 
             const file = new File([blob], "recording.webm", { type: 'audio/webm' });

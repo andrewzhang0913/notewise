@@ -116,7 +116,7 @@ class HomeNetSyncSettingTab extends PluginSettingTab {
         containerEl.empty();
         containerEl.createEl('h2', { text: 'HomeNet Sync Settings' });
 
-        new Setting(containerEl).setName('API keys').setHeading();
+        new Setting(containerEl).setHeading().setName('API keys');
 
         new Setting(containerEl)
             .setName('Groq API Key (Transcription)')
