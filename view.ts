@@ -459,6 +459,9 @@ export class HomeNetView extends ItemView {
 
                 // Restart recorder
                 this._startMediaRecorder();
+
+                // Restart VAD loop (Critical Fix)
+                this.monitorAudio();
             } else {
                 // Manual STOP - Full Cleanup
                 this.fullCleanup();
