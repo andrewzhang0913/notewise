@@ -75,14 +75,23 @@ export class DifyService {
     }
 
     async transcribeAudio(audioFile: File, prompt?: string): Promise<string> {
-        // Use separate Groq Key for transcription
-        if (!this.groqApiKey) throw new Error("Groq API Key is missing. Please set it in settings.");
+        let url = "";
+        let apiKey = "";
+        let model = "";
 
-        console.debug(`[DifyService] Using Groq Key: ${this.groqApiKey.substring(0, 4)}...`);
-
-        // Switch to Groq for maximum speed & stability
-        // API: https://console.groq.com/docs/speech-text
-        const url = "https://api.groq.com/openai/v1/audio/transcriptions";
+        if (this.siliconFlowKey) {
+            url = "https://api.siliconflow.cn/v1/audio/transcriptions";
+            apiKey = this.siliconFlowKey;
+            model = "FunAudioLLM/SenseVoiceSmall";
+            console.debug(`[DifyService] Using SiliconFlow (SenseVoiceSmall) for Transcription`);
+        } else if (this.groqApiKey) {
+            url = "https://api.groq.com/openai/v1/audio/transcriptions";
+            apiKey = this.groqApiKey;
+            model = "whisper-large-v3";
+            console.debug(`[DifyService] Using Groq (Whisper) for Transcription`);
+        } else {
+            throw new Error("Transcribe Error: No API Key found. Please set SiliconFlow Key or Groq Key.");
+        }
 
         const boundary = '----ObsidianSiliconBoundary' + Date.now();
         const arrayBuffer = await audioFile.arrayBuffer();
@@ -93,10 +102,10 @@ export class DifyService {
             `Content-Disposition: form-data; name="file"; filename="${audioFile.name}"\r\n` +
             `Content-Type: ${audioFile.type || 'audio/webm'}\r\n\r\n`;
 
-        // Header Part 2: Model (Groq Whisper)
+        // Header Part 2: Model (Dynamic)
         const modelHeader = `\r\n--${boundary}\r\n` +
             `Content-Disposition: form-data; name="model"\r\n\r\n` +
-            `whisper-large-v3`;
+            `${model}`;
 
         // Header Part 3: Prompt (Optional Context)
         let promptHeader = "";
@@ -130,13 +139,12 @@ export class DifyService {
 
         // Retry logic for transient errors
         const maxRetries = 3;
-        const retryDelays = [2000, 3000, 5000]; // Reduced delays
-        const requestTimeout = 20000; // 20s timeout
+        const retryDelays = [2000, 3000, 5000];
+        const requestTimeout = 20000;
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 const uniqueUrl = `${url}?t=${Date.now()}`;
-                console.debug(`[DifyService] Calling Groq (Attempt ${attempt}):`, uniqueUrl);
 
                 // Use Obsidian requestUrl
                 const response = await Promise.race([
@@ -144,7 +152,7 @@ export class DifyService {
                         url: uniqueUrl,
                         method: 'POST',
                         headers: {
-                            "Authorization": `Bearer ${this.groqApiKey}`,
+                            "Authorization": `Bearer ${apiKey}`,
                             "Content-Type": `multipart/form-data; boundary=${boundary}`
                         },
                         body: bodyBuffer.buffer as ArrayBuffer
