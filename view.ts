@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, ButtonComponent, Notice, MarkdownView, setIcon, DropdownComponent, requestUrl } from "obsidian";
+import { ItemView, WorkspaceLeaf, ButtonComponent, Notice, MarkdownView, setIcon, DropdownComponent } from "obsidian";
 import { DifyService } from "./dify_service";
 
 export const VIEW_TYPE_HOMENET = "homenet-view";
@@ -54,6 +54,7 @@ class AudioVisualizer {
     draw() {
         this.animationId = requestAnimationFrame(() => this.draw());
 
+        // @ts-ignore - TS lib issue with ArrayBufferLike
         this.analyser.getByteFrequencyData(this.dataArray);
 
         const width = this.canvas.width;

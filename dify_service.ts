@@ -60,7 +60,7 @@ export class DifyService {
                 try {
                     const errorBody = response.json as { message?: string; code?: string };
                     errorMsg += `: ${JSON.stringify(errorBody)}`;
-                } catch (e) {
+                } catch {
                     errorMsg += ` (Body: ${response.text})`;
                 }
                 throw new Error(errorMsg);
