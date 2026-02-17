@@ -54,8 +54,7 @@ class AudioVisualizer {
     draw() {
         this.animationId = requestAnimationFrame(() => this.draw());
 
-        // @ts-ignore - TS lib issue with ArrayBufferLike
-        this.analyser.getByteFrequencyData(this.dataArray);
+        this.analyser.getByteFrequencyData(this.dataArray as any);
 
         const width = this.canvas.width;
         const height = this.canvas.height;
@@ -149,7 +148,7 @@ export class HomeNetView extends ItemView {
 
         // Write to file periodically (every 5 entries) or on important messages
         if (this.debugLog.length % 5 === 0 || message.includes("ERROR") || message.includes("FINISH")) {
-            void this.flushLog();
+            await this.flushLog();
         }
     }
 
@@ -185,7 +184,7 @@ export class HomeNetView extends ItemView {
     getDisplayText() { return "NoteWise (智记)"; }
     getIcon() { return "audio-waveform"; }
 
-    async onOpen() {
+    onOpen(): Promise<void> {
         // Add Header Actions
         // Clear existing actions (hacky but needed if re-running onOpen)
         // Actually, ItemView actions are usually managed by the leaf. 
@@ -196,8 +195,8 @@ export class HomeNetView extends ItemView {
         // We will just add the button once. 
         // Note: standard `addAction` appends to the header.
         if (this.containerEl.querySelectorAll('.view-action.reload-btn').length === 0) {
-            this.addAction("refresh-cw", "Reload view", () => {
-                void this.onOpen();
+            this.addAction("refresh-cw", "Reload View", () => {
+                this.onOpen();
                 new Notice("Reloaded Plugin View");
             }).addClass("reload-btn");
         }
@@ -269,7 +268,7 @@ export class HomeNetView extends ItemView {
         // Translation Toggle (Globe)
         const transBtn = new ButtonComponent(leftControls)
             .setIcon("globe")
-            .setTooltip("Smart swap translation (CN<->EN)")
+            .setTooltip("Smart Swap Translation (CN<->EN)")
             .onClick(() => {
                 this.isTranslationMode = !this.isTranslationMode;
                 if (this.isTranslationMode) {
@@ -287,7 +286,7 @@ export class HomeNetView extends ItemView {
         // Refine Button (Magic Wand)
         new ButtonComponent(rightControls)
             .setIcon("wand")
-            .setTooltip("Refine text")
+            .setTooltip("Refine Text")
             .onClick(async () => {
                 await this.refineText();
                 this.autoResizeInput(); // Trigger resize after refine
@@ -296,7 +295,7 @@ export class HomeNetView extends ItemView {
         // Insert Button (Arrow/PaperPlane)
         new ButtonComponent(rightControls)
             .setIcon("arrow-up-circle") // Or 'paper-plane'
-            .setTooltip("Insert to note")
+            .setTooltip("Insert to Note")
             .onClick(() => this.insertToActiveNote());
 
         // --- IMPROVED RECORD BUTTON ---
@@ -306,7 +305,7 @@ export class HomeNetView extends ItemView {
         this.recordBtnEl = recordBtn;
 
         recordBtn.onclick = () => {
-            void this.toggleRecordingState();
+            this.toggleRecordingState();
         };
 
         // --- Auto-Resize Logic ---
@@ -315,6 +314,7 @@ export class HomeNetView extends ItemView {
         // Status Bar
         this.statusEl = bottomContainer.createDiv({ cls: "homenet-status-bar" });
         this.updateStatus("Ready");
+        return Promise.resolve();
     }
 
     // Removed legacy updateTranslateBtnVisual and handleBtnDown methods as they are no longer needed 
@@ -330,7 +330,7 @@ export class HomeNetView extends ItemView {
         }
 
         // Short click logic
-        void this.toggleRecordingState();
+        this.toggleRecordingState();
     }
 
     async toggleRecordingState() {
@@ -346,8 +346,9 @@ export class HomeNetView extends ItemView {
 
 
     autoResizeInput() {
-        this.inputArea.setCssProps({ "height": "auto" }); // Reset to shrink if needed
-        this.inputArea.setCssProps({ "height": this.inputArea.scrollHeight + "px" });
+        // Use textContent instead of style for height if needed, 
+        // but row count is safer for Obsidian guides.
+        this.inputArea.rows = (this.inputArea.value.split('\n').length || 1);
     }
 
     updateBtnVisuals(state: 'idle' | 'recording' | 'paused' | 'stop') {
@@ -448,7 +449,7 @@ export class HomeNetView extends ItemView {
                 }
 
                 // Process concurrently (Wait, bot says AWAIT)
-                void this.processAudioChunk(blob, this.sliceCount);
+                await this.processAudioChunk(blob, this.sliceCount);
             }
 
             // If auto-slicing, RESTART immediately
@@ -509,7 +510,7 @@ export class HomeNetView extends ItemView {
         }
     }
 
-    async stopRecording(completely = true) {
+    stopRecording(completely = true) {
         if (!this.mediaRecorder || this.mediaRecorder.state === "inactive") return;
 
         this.isRecording = false;
@@ -591,7 +592,7 @@ export class HomeNetView extends ItemView {
             // @ts-ignore
             const saveFile = this.app.plugins.getPlugin('notewise').settings.saveAudioFiles;
             if (saveFile) {
-                void this.saveAudioToVault(blob);
+                this.saveAudioToVault(blob);
             }
 
             const file = new File([blob], "recording.webm", { type: 'audio/webm' });

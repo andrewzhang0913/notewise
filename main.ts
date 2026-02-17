@@ -114,7 +114,7 @@ class HomeNetSyncSettingTab extends PluginSettingTab {
     display(): void {
         const { containerEl } = this;
         containerEl.empty();
-        containerEl.createEl('h2', { text: 'HomeNet Sync Settings' });
+        new Setting(containerEl).setName('HomeNet Sync Settings').setHeading();
 
         new Setting(containerEl).setName('API keys').setHeading();
 
